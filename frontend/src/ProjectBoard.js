@@ -1,490 +1,783 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { Container, Grid, Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Typography, Card, CardContent, Select, MenuItem, FormControl, InputLabel, Drawer, List, ListItem, ListItemIcon, ListItemText, AppBar, Toolbar, Switch } from '@mui/material';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { 
+  Container, Box, Button, Dialog, DialogTitle, DialogContent, 
+  DialogActions, TextField, IconButton, Typography, Divider,
+  Select, MenuItem, FormControl, InputLabel, Avatar, ToggleButton,
+  List, ListItem, ListItemText, ListItemAvatar, ToggleButtonGroup,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Paper, Chip, Menu
+} from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
-import UploadIcon from '@mui/icons-material/Upload';
-import { useDrag, useDrop } from 'react-dnd';
+import SendIcon from '@mui/icons-material/Send';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { LoadingButton } from '@mui/lab';
+import Column from './Column';
 
-const Column = ({ title, tickets, onDrop, onTicketClick, deleteTicket }) => {
-  const [{ isOver }, drop] = useDrop({
-    accept: 'ticket',
-    drop: (item) => onDrop(item.ticket, item.sourceColumn, title),
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+const TicketDialog = ({ open, ticket, onClose, onSave, onDelete }) => {
+  const [ticketData, setTicketData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    comments: []
   });
+  const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  return (
-    <Box
-      ref={drop}
-      sx={{
-        width: 300,
-        minHeight: 500,
-        bgcolor: isOver ? '#f0f0f0' : 'background.paper',
-        p: 2,
-        borderRadius: 2,
-        boxShadow: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: '#1976d2' }}>
-        {title}
-      </Typography>
-      {tickets.map((ticket) => (
-        <Ticket
-          key={ticket.id}
-          ticket={ticket}
-          onClick={() => onTicketClick(ticket)}
-          sourceColumn={title}
-        />
-      ))}
-    </Box>
-  );
-};
+  useEffect(() => {
+    if (ticket) {
+      setTicketData({
+        ...ticket,
+        comments: ticket.comments || []
+      });
+    } else {
+      setTicketData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        comments: []
+      });
+    }
+  }, [ticket, open]);
 
-const Ticket = ({ ticket, onClick, sourceColumn }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'ticket',
-    item: { ticket, sourceColumn },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
-  });
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const success = await onSave(ticketData);
+      if (!success) {
+        throw new Error('Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('Error saving ticket:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const priorityColors = {
-    high: '#ef5350',
-    medium: '#fb8c00',
-    low: '#66bb6a'
+  const handleAddComment = () => {
+    if (!newComment.trim()) return;
+
+    const firstName = localStorage.getItem('firstName') || '';
+    const lastName = localStorage.getItem('lastName') || '';
+    const fullName = `${firstName} ${lastName}`.trim() || 'Utilisateur';
+
+    const comment = {
+      id: Date.now(),
+      text: newComment,
+      author: fullName,
+      createdAt: new Date().toISOString()
+    };
+
+    setTicketData(prev => ({
+      ...prev,
+      comments: [...prev.comments, comment]
+    }));
+    setNewComment('');
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return `Aujourd'hui à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return `Hier à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
   };
 
   return (
-    <Card
-      ref={drag}
-      sx={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: 'move',
-        mb: 2,
-        '&:hover': {
-          transform: 'scale(1.02)',
-          transition: 'transform 0.2s ease-in-out',
-        },
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          height: '90vh',
+          maxHeight: '90vh'
+        }
       }}
     >
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Box
-            sx={{
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              backgroundColor: priorityColors[ticket.priority] || '#757575',
-              mr: 1
-            }}
+      <DialogTitle sx={{ px: 3, py: 2, bgcolor: 'grey.100' }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">
+            {ticket ? 'Modifier le ticket' : 'Nouveau ticket'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 0, display: 'flex' }}>
+        <Box flex={2} p={3} sx={{ borderRight: 1, borderColor: 'divider' }}>
+          <TextField
+            autoFocus
+            variant="outlined"
+            label="Titre"
+            fullWidth
+            value={ticketData.title}
+            onChange={(e) => setTicketData({ ...ticketData, title: e.target.value })}
+            sx={{ mb: 3 }}
           />
-          <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 'bold' }}>
-            {ticket.content}
+
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel>Priorité</InputLabel>
+            <Select
+              value={ticketData.priority}
+              onChange={(e) => setTicketData({ ...ticketData, priority: e.target.value })}
+              label="Priorité"
+            >
+              <MenuItem value="low">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2ECC71' }} />
+                  Basse
+                </Box>
+              </MenuItem>
+              <MenuItem value="medium">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#F1C40F' }} />
+                  Moyenne
+                </Box>
+              </MenuItem>
+              <MenuItem value="high">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#E74C3C' }} />
+                  Haute
+                </Box>
+              </MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Description"
+            multiline
+            rows={4}
+            fullWidth
+            value={ticketData.description}
+            onChange={(e) => setTicketData({ ...ticketData, description: e.target.value })}
+            sx={{ mb: 3 }}
+          />
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 4, mb: 2 }}>
+            Commentaires
           </Typography>
+
+          <Box 
+            sx={{ 
+              maxHeight: 'calc(90vh - 450px)',
+              overflowY: 'auto',
+              mb: 2
+            }}
+          >
+            <List>
+              {ticketData.comments.map((comment) => (
+                <React.Fragment key={comment.id}>
+                  <ListItem alignItems="flex-start" sx={{ px: 0 }}>
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: 'primary.main' }}>
+                        {comment.author.split(' ').map(n => n[0]).join('')}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="subtitle2">
+                            {comment.author}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {formatDate(comment.createdAt)}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={comment.text}
+                      secondaryTypographyProps={{
+                        sx: { mt: 1, whiteSpace: 'pre-wrap' }
+                      }}
+                    />
+                  </ListItem>
+                  <Divider component="li" sx={{ my: 1 }} />
+                </React.Fragment>
+              ))}
+            </List>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              placeholder="Ajouter un commentaire..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              multiline
+              rows={2}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px'
+                }
+              }}
+            />
+            <IconButton 
+              color="primary"
+              onClick={handleAddComment}
+              disabled={!newComment.trim()}
+              sx={{
+                alignSelf: 'flex-end',
+                bgcolor: 'primary.main',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: 'primary.dark'
+                },
+                '&.Mui-disabled': {
+                  bgcolor: 'action.disabledBackground',
+                  color: 'action.disabled'
+                }
+              }}
+            >
+              <SendIcon />
+            </IconButton>
+          </Box>
         </Box>
-        {ticket.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {ticket.description}
-          </Typography>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2, borderTop: 1, borderColor: 'divider' }}>
+        {ticket && (
+          <Button
+            color="error"
+            onClick={() => onDelete(ticket.id)}
+            startIcon={<DeleteIcon />}
+          >
+            Supprimer
+          </Button>
         )}
-        <Box
-          onClick={onClick}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mt: 1
-          }}
+        <Box flex={1} />
+        <Button onClick={onClose}>
+          Annuler
+        </Button>
+        <LoadingButton
+          loading={loading}
+          variant="contained"
+          onClick={handleSave}
+          disabled={!ticketData.title.trim()}
         >
-          <Typography variant="caption" color="text.secondary">
-            {ticket.comments?.length || 0} commentaire(s)
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+          {ticket ? 'Mettre à jour' : 'Créer'}
+        </LoadingButton>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+const BacklogView = ({ columns, onEditTicket, onCreateTicket }) => {
+  const [sortOrder, setSortOrder] = useState('desc');
+  const allTickets = Object.entries(columns).reduce((acc, [columnName, column]) => {
+    return [...acc, ...column.tickets.map(ticket => ({ ...ticket, status: columnName }))];
+  }, []);
+
+  const sortedTickets = [...allTickets].sort((a, b) => {
+    const priorityValues = { high: 3, medium: 2, low: 1 };
+    const priorityA = priorityValues[a.priority] || 0;
+    const priorityB = priorityValues[b.priority] || 0;
+    return sortOrder === 'desc' ? priorityB - priorityA : priorityA - priorityB;
+  });
+
+  const priorityColors = {
+    low: '#2ECC71',
+    medium: '#F1C40F',
+    high: '#E74C3C'
+  };
+
+  return (
+    <TableContainer component={Paper} sx={{ mt: 2 }}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Titre</TableCell>
+            <TableCell>Description</TableCell>
+            <TableCell>Priorité</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Commentaires</TableCell>
+            <TableCell>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sortedTickets.map((ticket) => (
+            <TableRow key={ticket.id} hover>
+              <TableCell>{ticket.title}</TableCell>
+              <TableCell>{ticket.description}</TableCell>
+              <TableCell>
+                <Chip
+                  label={ticket.priority}
+                  size="small"
+                  sx={{
+                    bgcolor: `${priorityColors[ticket.priority]}20`,
+                    color: priorityColors[ticket.priority],
+                    fontWeight: 'bold',
+                    textTransform: 'capitalize'
+                  }}
+                />
+              </TableCell>
+              <TableCell>{ticket.status}</TableCell>
+              <TableCell>{ticket.comments?.length || 0}</TableCell>
+              <TableCell>
+                <IconButton 
+                  size="small" 
+                  onClick={() => onEditTicket(ticket, ticket.status)}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 };
 
 const ProjectBoard = () => {
-  const API_URL = 'https://jira-clone-backend-jj1q326im-toms-projects-36b08638.vercel.app';
-  const [columns, setColumns] = useState({
-    'À faire': { id: 1, tickets: [] },
-    'En cours': { id: 2, tickets: [] },
-    'Terminé': { id: 3, tickets: [] }
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [columns, setColumns] = useState({});
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [view, setView] = useState('board');
+  const [ticketDialog, setTicketDialog] = useState({
+    open: false,
+    ticket: null,
+    columnId: null
   });
-  const [open, setOpen] = useState(false);
-  const [currentTicket, setCurrentTicket] = useState(null);
-  const [newComment, setNewComment] = useState('');
-  const [comments, setComments] = useState([]);
-  const [commentImage, setCommentImage] = useState(null);
-  const [viewMode, setViewMode] = useState('board');
+  const [columnDialog, setColumnDialog] = useState({
+    open: false,
+    title: ''
+  });
 
   useEffect(() => {
-    const savedColumns = localStorage.getItem('columns');
-    if (savedColumns) {
-      setColumns(JSON.parse(savedColumns));
+    if (projectId) {
+      fetchProject();
     }
-  }, []);
+  }, [projectId]);
 
-  useEffect(() => {
-    localStorage.setItem('columns', JSON.stringify(columns));
-  }, [columns]);
+  const fetchProject = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/projects/${projectId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Projet non trouvé');
+      }
 
-  const handleDrop = (ticket, sourceColumn, targetColumn) => {
-    if (sourceColumn === targetColumn) return;
+      const data = await response.json();
+      setProject(data);
+      setColumns(data.columns);
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      navigate('/');
+    }
+  };
 
-    setColumns(prev => {
-      const newColumns = { ...prev };
-      newColumns[sourceColumn].tickets = newColumns[sourceColumn].tickets.filter(t => t.id !== ticket.id);
-      newColumns[targetColumn].tickets = [...newColumns[targetColumn].tickets, ticket];
-      return newColumns;
+  const handleDeleteProject = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      navigate('/');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  };
+
+  const handleMoveTicket = async (ticketId, sourceColumnId, targetColumnId) => {
+    const updatedColumns = { ...columns };
+    const sourceTickets = updatedColumns[sourceColumnId].tickets;
+    const targetTickets = updatedColumns[targetColumnId].tickets;
+    const ticketIndex = sourceTickets.findIndex(t => t.id === ticketId);
+    
+    if (ticketIndex !== -1) {
+      const [ticket] = sourceTickets.splice(ticketIndex, 1);
+      targetTickets.push(ticket);
+      setColumns(updatedColumns);
+
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_URL}/projects/${projectId}/columns`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ columns: updatedColumns })
+        });
+      } catch (error) {
+        console.error('Error updating columns:', error);
+      }
+    }
+  };
+
+  const handleOpenTicketDialog = (ticket = null, columnId = null) => {
+    setTicketDialog({
+      open: true,
+      ticket,
+      columnId
     });
   };
 
-  const handleOpen = (ticket = null) => {
-    setCurrentTicket(ticket);
-    if (ticket) {
-      const savedComments = localStorage.getItem(`comments_${ticket.id}`);
-      setComments(savedComments ? JSON.parse(savedComments) : []);
-    } else {
-      setComments([]);
-    }
-    setOpen(true);
+  const handleCloseTicketDialog = () => {
+    setTicketDialog({
+      open: false,
+      ticket: null,
+      columnId: null
+    });
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setCurrentTicket(null);
-    setNewComment('');
-    setCommentImage(null);
-  };
+  const handleCreateTicket = async (columnId, ticketData) => {
+    const updatedColumns = { ...columns };
+    const newTicket = {
+      id: Date.now().toString(),
+      comments: [],
+      ...ticketData
+    };
 
-  const handleSave = () => {
-    if (currentTicket) {
-      setColumns(prev => {
-        const newColumns = { ...prev };
-        Object.keys(newColumns).forEach(columnTitle => {
-          const columnTickets = newColumns[columnTitle].tickets;
-          const ticketIndex = columnTickets.findIndex(t => t.id === currentTicket.id);
-          if (ticketIndex !== -1) {
-            columnTickets[ticketIndex] = {
-              ...currentTicket,
-              comments: comments
-            };
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/projects/${projectId}/columns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          columns: {
+            ...updatedColumns,
+            [columnId]: {
+              ...updatedColumns[columnId],
+              tickets: [...updatedColumns[columnId].tickets, newTicket]
+            }
+          }
+        })
+      });
+
+      if (response.ok) {
+        setColumns({
+          ...updatedColumns,
+          [columnId]: {
+            ...updatedColumns[columnId],
+            tickets: [...updatedColumns[columnId].tickets, newTicket]
           }
         });
-        return newColumns;
-      });
-      localStorage.setItem(`comments_${currentTicket.id}`, JSON.stringify(comments));
-    } else {
-      const newTicket = {
-        id: Date.now(),
-        content: document.getElementById('ticketTitle').value,
-        description: document.getElementById('ticketDescription').value,
-        priority: document.getElementById('ticketPriority').value,
-        comments: []
+        return true;
+      }
+      throw new Error('Erreur lors de la création du ticket');
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      return false;
+    }
+  };
+
+  const handleUpdateTicket = async (columnId, ticketId, updatedData) => {
+    const updatedColumns = { ...columns };
+    const column = updatedColumns[columnId];
+    const ticketIndex = column.tickets.findIndex(t => t.id === ticketId);
+    
+    if (ticketIndex !== -1) {
+      const updatedTicket = { 
+        ...column.tickets[ticketIndex], 
+        ...updatedData,
+        comments: updatedData.comments || column.tickets[ticketIndex].comments || []
       };
-      setColumns(prev => ({
-        ...prev,
-        'À faire': {
-          ...prev['À faire'],
-          tickets: [...prev['À faire'].tickets, newTicket]
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/projects/${projectId}/columns`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            columns: {
+              ...updatedColumns,
+              [columnId]: {
+                ...column,
+                tickets: [
+                  ...column.tickets.slice(0, ticketIndex),
+                  updatedTicket,
+                  ...column.tickets.slice(ticketIndex + 1)
+                ]
+              }
+            }
+          })
+        });
+
+        if (response.ok) {
+          setColumns({
+            ...updatedColumns,
+            [columnId]: {
+              ...column,
+              tickets: [
+                ...column.tickets.slice(0, ticketIndex),
+                updatedTicket,
+                ...column.tickets.slice(ticketIndex + 1)
+              ]
+            }
+          });
+          return true;
         }
-      }));
+        throw new Error('Erreur lors de la mise à jour du ticket');
+      } catch (error) {
+        console.error('Error updating ticket:', error);
+        return false;
+      }
     }
-    handleClose();
+    return false;
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim() || commentImage) {
-      const comment = {
-        id: Date.now(),
-        text: newComment,
-        image: commentImage
-      };
-      setComments(prev => [...prev, comment]);
-      setNewComment('');
-      setCommentImage(null);
+  const handleDeleteTicket = async (ticketId) => {
+    const { columnId } = ticketDialog;
+    const updatedColumns = { ...columns };
+    const column = updatedColumns[columnId];
+    column.tickets = column.tickets.filter(t => t.id !== ticketId);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/projects/${projectId}/columns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ columns: updatedColumns })
+      });
+
+      if (response.ok) {
+        setColumns(updatedColumns);
+        handleCloseTicketDialog();
+      } else {
+        throw new Error('Erreur lors de la suppression du ticket');
+      }
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
     }
   };
 
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCommentImage(reader.result);
-      };
-      reader.readAsDataURL(file);
+  const handleSaveTicket = async (ticketData) => {
+    const { columnId, ticket } = ticketDialog;
+    let success = false;
+    
+    if (ticket) {
+      success = await handleUpdateTicket(columnId, ticket.id, ticketData);
+    } else {
+      success = await handleCreateTicket(columnId, ticketData);
     }
+
+    if (success) {
+      handleCloseTicketDialog();
+    }
+    return success;
   };
 
-  const removeColumn = (columnTitle) => {
-    setColumns(prev => {
-      const newColumns = { ...prev };
-      delete newColumns[columnTitle];
-      return newColumns;
-    });
-  };
+  const handleAddColumn = async () => {
+    if (!columnDialog.title.trim()) return;
 
-  const addProject = (projectName) => {
-    setColumns(prev => ({
-      ...prev,
-      [projectName]: {
-        id: Date.now(),
+    const newColumnId = columnDialog.title;
+    const updatedColumns = {
+      ...columns,
+      [newColumnId]: {
+        id: Date.now().toString(),
         tickets: []
       }
-    }));
-  };
+    };
 
-  const sortTickets = (columnTitle) => {
-    setColumns(prev => {
-      const newColumns = { ...prev };
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      
-      newColumns[columnTitle].tickets.sort((a, b) => {
-        return priorityOrder[b.priority] - priorityOrder[a.priority];
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/projects/${projectId}/columns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ columns: updatedColumns })
       });
-      
-      return newColumns;
-    });
-  };
 
-  const deleteComment = (commentId) => {
-    setComments(prev => prev.filter(comment => comment.id !== commentId));
-  };
-
-  const deleteTicketFromModal = () => {
-    if (currentTicket) {
-      setColumns(prev => {
-        const newColumns = { ...prev };
-        Object.keys(newColumns).forEach(columnTitle => {
-          newColumns[columnTitle].tickets = newColumns[columnTitle].tickets.filter(
-            t => t.id !== currentTicket.id
-          );
-        });
-        return newColumns;
-      });
-      localStorage.removeItem(`comments_${currentTicket.id}`);
-      handleClose();
+      if (response.ok) {
+        setColumns(updatedColumns);
+        setColumnDialog({ open: false, title: '' });
+      }
+    } catch (error) {
+      console.error('Error adding column:', error);
     }
   };
 
+  const handleDeleteColumn = async (columnId) => {
+    const updatedColumns = { ...columns };
+    delete updatedColumns[columnId];
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/projects/${projectId}/columns`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ columns: updatedColumns })
+      });
+
+      if (response.ok) {
+        setColumns(updatedColumns);
+      }
+    } catch (error) {
+      console.error('Error deleting column:', error);
+    }
+  };
+
+  if (!project) {
+    return null;
+  }
+
   return (
-    <DndProvider backend={HTML5Backend}>
-      <Box sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-          <Typography variant="h4" sx={{ color: '#1976d2' }}>
-            Project Board
-          </Typography>
-          <Button
-            variant="contained"
-            onClick={() => handleOpen(null)}
-            sx={{ textTransform: 'none' }}
-          >
-            Ajouter un ticket
-          </Button>
+    <Container>
+      <Box my={4}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <h2>{project.name}</h2>
+            <ToggleButtonGroup
+              value={view}
+              exclusive
+              onChange={(e, newView) => newView && setView(newView)}
+              size="small"
+            >
+              <ToggleButton value="board">
+                <ViewColumnIcon sx={{ mr: 1 }} />
+                Board
+              </ToggleButton>
+              <ToggleButton value="backlog">
+                <ViewListIcon sx={{ mr: 1 }} />
+                Backlog
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <Box display="flex" gap={2}>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => setColumnDialog({ open: true, title: '' })}
+            >
+              Ajouter une colonne
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteProject}
+            >
+              Supprimer le projet
+            </Button>
+          </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 3, overflowX: 'auto', pb: 2 }}>
-          {Object.entries(columns).map(([title, column]) => (
-            <Box key={title} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Button
-                  onClick={() => sortTickets(title)}
-                  variant="outlined"
-                  size="small"
-                  sx={{ textTransform: 'none' }}
-                >
-                  Trier par priorité
-                </Button>
-              </Box>
-              <Column
-                title={title}
-                tickets={column.tickets}
-                onDrop={handleDrop}
-                onTicketClick={handleOpen}
-              />
-            </Box>
-          ))}
-        </Box>
-
-        <Dialog 
-          open={open} 
-          onClose={handleClose}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            {currentTicket ? currentTicket.content : "Créer un nouveau ticket"}
-            <IconButton
-              aria-label="close"
-              onClick={handleClose}
+        {view === 'board' ? (
+          <DndProvider backend={HTML5Backend}>
+            <Box
+              display="flex"
+              gap={2}
               sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
+                overflowX: 'auto',
+                pb: 2,
+                '& > div': {
+                  minWidth: 300,
+                  maxWidth: 300
+                }
               }}
             >
-              ×
-            </IconButton>
-          </DialogTitle>
-          <DialogContent dividers sx={{ display: 'flex', gap: 2 }}>
-            <Box sx={{ flex: 1, overflowY: 'auto', maxHeight: '70vh' }}>
-              {!currentTicket ? (
-                <>
-                  <TextField
-                    autoFocus
-                    margin="dense"
-                    id="ticketTitle"
-                    label="Titre"
-                    type="text"
-                    fullWidth
-                    variant="outlined"
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    margin="dense"
-                    id="ticketDescription"
-                    label="Description"
-                    multiline
-                    rows={4}
-                    fullWidth
-                    variant="outlined"
-                    sx={{ mb: 2 }}
-                  />
-                  <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
-                    <InputLabel id="priority-label">Priorité</InputLabel>
-                    <Select
-                      labelId="priority-label"
-                      id="ticketPriority"
-                      defaultValue="medium"
-                      label="Priorité"
-                    >
-                      <MenuItem value="low">Basse</MenuItem>
-                      <MenuItem value="medium">Moyenne</MenuItem>
-                      <MenuItem value="high">Haute</MenuItem>
-                    </Select>
-                  </FormControl>
-                </>
-              ) : (
-                <>
-                  <Typography variant="h6" gutterBottom>
-                    Description
-                  </Typography>
-                  <Typography paragraph>
-                    {currentTicket.description || "Aucune description"}
-                  </Typography>
-                  <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-                    Commentaires
-                  </Typography>
-                  {comments.length === 0 ? (
-                    <Typography color="text.secondary">
-                      Aucun commentaire pour le moment
-                    </Typography>
-                  ) : (
-                    comments.map((comment) => (
-                      <Card key={comment.id} sx={{ mb: 2 }}>
-                        <CardContent>
-                          <Typography>{comment.text}</Typography>
-                          {comment.image && (
-                            <Box sx={{ mt: 2 }}>
-                              <img 
-                                src={comment.image} 
-                                alt="Comment attachment" 
-                                style={{ maxWidth: '100%', maxHeight: 200 }}
-                              />
-                            </Box>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </>
-              )}
-            </Box>
-            {currentTicket && (
-              <Box sx={{ width: '300px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={deleteTicketFromModal}
-                  sx={{ mb: 2 }}
-                >
-                  Supprimer le ticket
-                </Button>
-                <TextField
-                  multiline
-                  rows={4}
-                  variant="outlined"
-                  placeholder="Ajouter un commentaire..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  fullWidth
+              {Object.entries(columns).map(([columnName, column]) => (
+                <Column
+                  key={column.id}
+                  id={columnName}
+                  title={columnName}
+                  tickets={column.tickets}
+                  onMoveTicket={handleMoveTicket}
+                  onCreateTicket={() => handleOpenTicketDialog(null, columnName)}
+                  onEditTicket={(ticket) => handleOpenTicketDialog(ticket, columnName)}
+                  onDeleteTicket={handleDeleteTicket}
+                  onDeleteColumn={handleDeleteColumn}
                 />
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <IconButton
-                    color="primary"
-                    component="label"
-                    sx={{ padding: '4px' }}
-                  >
-                    <input
-                      type="file"
-                      hidden
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                    />
-                    <UploadIcon />
-                  </IconButton>
-                  <Button
-                    variant="contained"
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() && !commentImage}
-                  >
-                    Envoyer
-                  </Button>
-                </Box>
-                {commentImage && (
-                  <Box sx={{ mt: 2, position: 'relative' }}>
-                    <img
-                      src={commentImage}
-                      alt="Upload preview"
-                      style={{ maxWidth: '100%', maxHeight: 200 }}
-                    />
-                    <IconButton
-                      size="small"
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        right: 0,
-                        bgcolor: 'background.paper'
-                      }}
-                      onClick={() => setCommentImage(null)}
-                    >
-                      <CloseIcon />
-                    </IconButton>
-                  </Box>
-                )}
-              </Box>
-            )}
+              ))}
+            </Box>
+          </DndProvider>
+        ) : (
+          <BacklogView
+            columns={columns}
+            onEditTicket={handleOpenTicketDialog}
+            onCreateTicket={handleOpenTicketDialog}
+          />
+        )}
+
+        <TicketDialog
+          open={ticketDialog.open}
+          ticket={ticketDialog.ticket}
+          onClose={handleCloseTicketDialog}
+          onSave={handleSaveTicket}
+          onDelete={handleDeleteTicket}
+        />
+
+        <Dialog
+          open={columnDialog.open}
+          onClose={() => setColumnDialog({ open: false, title: '' })}
+        >
+          <DialogTitle>Nouvelle colonne</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Nom de la colonne"
+              fullWidth
+              value={columnDialog.title}
+              onChange={(e) => setColumnDialog({ ...columnDialog, title: e.target.value })}
+            />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Annuler</Button>
-            <Button onClick={handleSave} variant="contained">
-              Sauvegarder
+            <Button onClick={() => setColumnDialog({ open: false, title: '' })}>
+              Annuler
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={handleAddColumn}
+              disabled={!columnDialog.title.trim()}
+            >
+              Ajouter
             </Button>
           </DialogActions>
         </Dialog>
       </Box>
-    </DndProvider>
+    </Container>
   );
 };
 

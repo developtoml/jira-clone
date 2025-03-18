@@ -42,18 +42,22 @@ const columnSchema = new mongoose.Schema({
 const projectSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
-  owner: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  members: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  columns: [columnSchema]
+  columns: {
+    type: Object,
+    default: {
+      'À faire': { id: 1, tickets: [] },
+      'En cours': { id: 2, tickets: [] },
+      'Terminé': { id: 3, tickets: [] }
+    }
+  }
 }, {
   timestamps: true
 });
