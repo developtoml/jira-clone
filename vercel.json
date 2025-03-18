@@ -5,10 +5,13 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
-    },
+    }
+  ],
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/[^.]+",
+      "dest": "/",
+      "status": 200
     }
   ]
 } 
