@@ -3,16 +3,8 @@
   "outputDirectory": "frontend/build",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/project/:path*",
-      "destination": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://jira-clone-backend.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
