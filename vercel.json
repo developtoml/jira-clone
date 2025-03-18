@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://jira-clone-backend.vercel.app/api/:path*"
+      "destination": "https://jira-clone-backend-6ypcr63e3-toms-projects-36b08638.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
