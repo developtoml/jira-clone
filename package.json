@@ -1,0 +1,10 @@
+{
+  "name": "jira-clone",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "concurrently \"cd backend && node index.js\" \"cd frontend && npm start\""
+  },
+  "dependencies": {
+    "concurrently": "^7.0.0"
+  }
+} 
