@@ -5,13 +5,18 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
-    }
-  ],
-  "routes": [
+    },
     {
-      "src": "/[^.]+",
-      "dest": "/",
-      "status": 200
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/project/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 } 
