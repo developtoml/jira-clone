@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert } from '@mui/material';
 import { LoadingButton } from '@mui/lab';
-
-const API_URL = 'http://localhost:5000/api';
+import { API_URL } from './config';
 
 const Login = () => {
   const navigate = useNavigate();

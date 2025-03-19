@@ -2,6 +2,11 @@
   "name": "jira-clone",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "start": "concurrently \"cd backend && npm start\" \"cd frontend && npm start\"",
+    "install-deps": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "build": "cd frontend && npm install --legacy-peer-deps && npm run build"
+  },
   "dependencies": {
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
@@ -22,13 +27,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "cd frontend && npm install --legacy-peer-deps && npm run build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "web-vitals": "^2.1.4",
+    "concurrently": "^8.2.2"
   },
   "eslintConfig": {
     "extends": [

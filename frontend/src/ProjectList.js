@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-
-const API_URL = 'http://localhost:5000/api';
+import { API_URL } from './config';
 
 const ProjectList = () => {
   const navigate = useNavigate();

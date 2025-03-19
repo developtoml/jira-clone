@@ -20,8 +20,7 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { LoadingButton } from '@mui/lab';
 import Column from './Column';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { API_URL } from './config';
 
 const TicketDialog = ({ open, ticket, onClose, onSave, onDelete }) => {
   const [ticketData, setTicketData] = useState({
