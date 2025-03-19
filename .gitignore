@@ -29,3 +29,6 @@ yarn-error.log*
 /backend/.cache
 /frontend/node_modules/.cache/
 /backend/node_modules/.cache/
+node_modules/
+.cache/
+*.pack
